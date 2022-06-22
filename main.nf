@@ -59,7 +59,7 @@ process star {
 	path("*.bam") into bam_ch
 
 	container 'docker://nciccbr/ccbr_star_2.7.0f'
-	container 'docker://nciccbr/ccbr_samtools_1.9'	
+
 	script:
 	"""
 	mkdir STAR_out
