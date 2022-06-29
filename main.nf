@@ -1,6 +1,7 @@
+
 //params.genome     = "/data/khanlab/projects/ngs_pipeline_testing/References_4.0/GRCh38"
-params.star_Ref    = "/data/khanlab/projects/ngs_pipeline_testing/References_4.0/New_GRCh37/Index/STAR_2.7.8a"
-//params.reads      = "/data/khanlab/projects/DATA/Sample_NCI0439_T1D_E_HTNCJBGX9/Sample_NCI0439_T1D_E_HTNCJBGX9_{R1,R2}.fastq.gz" 
+//params.star_Ref    = "/data/khanlab/projects/ngs_pipeline_testing/References_4.0/New_GRCh37/Index/STAR_2.7.8a"
+genomeIndex = Channel.fromPath("/data/khanlab/projects/ngs_pipeline_testing/References_4.0/New_GRCh37/Index/STAR_2.7.8a")
 params.reads      = "/data/khanlab/projects/Nextflow_test/test_data/Sample_NCI0439_T1D_E_HTNCJBGX9_{R1,R2}.fastq"
 params.results    = "/data/khanlab/projects/Nextflow_test/results" 
 reads_ch = Channel.fromFilePairs(params.reads)
@@ -16,7 +17,7 @@ process cutadapt {
 	output:
 	path "trim*" into trim_ch1, trim_ch2
 
-	container 'docker://nciccbr/ccbr_cutadapt_1.18:v032219'
+	container 'docker://nciccbr/ncigb_cutadapt_v1.18:latest'
 
 	script:
 	"""
@@ -48,24 +49,33 @@ process fastqc {
 	"""
 }
 
+
+
+
 process star {
 
-	publishDir "$params.out/$sample_id", mode: 'move'
+//	publishDir "$params.out/$sample_id", mode: 'move'
 
 	input:
-	path(pairs) from trim_ch2
+	set pair_id, file(reads) from trim_ch2
+	file(STARgenome) from genomeIndex
 
 	output:
-	path("*.bam") into bam_ch
+	set pair_id, file("${pair_id}/*.out.bam") into bam_ch
+ 
 
-	container 'docker://nciccbr/ccbr_star_2.7.0f'
+	container 'docker://nciccbr/ncigb_star_v2.7.10a:latest'
 
 	script:
+
+	def output = "${pair_id}"
 	"""
+		
 	mkdir STAR_out
-	STAR --genomeDir $star_Ref \
-		--readFilesIn  ${pairs} \
-		--outFileNamePrefix ${sample_id}_ENS \
+	cd STAR_out
+	STAR --genomeDir ${STARgenome} \
+		--readFilesIn  ${reads} \
+		--outFileNamePrefix ${pair_id} \
 		--runThreadN ${task.cpus} \
 		--twopassMode Basic \
 		--outSAMunmapped Within \
@@ -79,6 +89,9 @@ process star {
 		--quantMode TranscriptomeSAM \
 		--outBAMsortingThreadN 6 \
 		--limitBAMsortRAM 80000000000
+	mkdir ${output}
+	mv *Aligned* ${output}
+
 	"""
 }
 
