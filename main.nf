@@ -29,10 +29,9 @@ process cutadapt {
 
 process fastqc {
 
-	publishDir "$params.out/$sample_id", mode: 'move'
+//	publishDir "$params.out/$sample_id", mode: 'move'
 
 	input:
-//	tuple sample_id, file(reads_file) from reads_ch
 	tuple val(sample_id), path(reads) from reads1_ch
 	path(pairs) from trim_ch1
 
@@ -50,32 +49,27 @@ process fastqc {
 }
 
 
-
-
 process star {
 
-//	publishDir "$params.out/$sample_id", mode: 'move'
+	publishDir "$params.out/$sample_id", mode: 'move'
 
 	input:
-	set pair_id, file(reads) from trim_ch2
+	path(pairs) from trim_ch2
 	file(STARgenome) from genomeIndex
 
 	output:
-	set pair_id, file("${pair_id}/*.out.bam") into bam_ch
- 
+	path "*Aligned.toTranscriptome.out.bam" into bam1
+	path "*Aligned.sortedByCoord.out.bam" into bam2
+//	path("STAR_out") into bam_ch
+
 
 	container 'docker://nciccbr/ncigb_star_v2.7.10a:latest'
 
 	script:
-
-	def output = "${pair_id}"
 	"""
-		
-	mkdir STAR_out
-	cd STAR_out
+	
 	STAR --genomeDir ${STARgenome} \
-		--readFilesIn  ${reads} \
-		--outFileNamePrefix ${pair_id} \
+		--readFilesIn  ${pairs} \
 		--runThreadN ${task.cpus} \
 		--twopassMode Basic \
 		--outSAMunmapped Within \
@@ -89,9 +83,9 @@ process star {
 		--quantMode TranscriptomeSAM \
 		--outBAMsortingThreadN 6 \
 		--limitBAMsortRAM 80000000000
-	mkdir ${output}
-	mv *Aligned* ${output}
-
+	
+#	mkdir STAR_out
+#	mv *bam ./STAR_out
 	"""
 }
 
