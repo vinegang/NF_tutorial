@@ -2,6 +2,7 @@
 //params.genome     = "/data/khanlab/projects/ngs_pipeline_testing/References_4.0/GRCh38"
 //params.star_Ref    = "/data/khanlab/projects/ngs_pipeline_testing/References_4.0/New_GRCh37/Index/STAR_2.7.8a"
 genomeIndex = Channel.fromPath("/data/khanlab/projects/ngs_pipeline_testing/References_4.0/New_GRCh37/Index/STAR_2.7.8a")
+rsemIndex = Channel.fromPath("/data/khanlab/projects/ngs_pipeline_testing/References_4.0/New_GRCh37/Index/rsem_1.3.2")
 params.reads      = "/data/khanlab/projects/Nextflow_test/test_data/Sample_NCI0439_T1D_E_HTNCJBGX9_{R1,R2}.fastq"
 params.results    = "/data/khanlab/projects/Nextflow_test/results" 
 reads_ch = Channel.fromFilePairs(params.reads)
@@ -51,7 +52,7 @@ process fastqc {
 
 process star {
 
-	publishDir "$params.out/$sample_id", mode: 'move'
+//	publishDir "$params.out/", mode: 'move'
 
 	input:
 	path(pairs) from trim_ch2
@@ -67,7 +68,6 @@ process star {
 
 	script:
 	"""
-	
 	STAR --genomeDir ${STARgenome} \
 		--readFilesIn  ${pairs} \
 		--runThreadN ${task.cpus} \
@@ -89,3 +89,25 @@ process star {
 	"""
 }
 
+
+
+process rsem {
+
+	publishDir "$params.out/", mode: 'move'
+	input:
+	path("bamfile") from bam1
+	file(rsemindex) from rsemIndex
+
+	output:
+	path("rsem_out") into expr
+	
+	container 'docker://nciccbr/ccbr_rsem_1.3.3:v1.0'
+
+	script:
+	"""
+	rsem-calculate-expression --no-bam-output --paired-end -p ${task.cpus}  --estimate-rspd  --bam ${bamfile} ${rsemindex}/rsem_1.3.2 test
+	mkdir rsem_out
+	mv *results ./rsem_out
+	"""
+
+}
